@@ -1,11 +1,12 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from app.models.blog import Post, Readlist, Category, PostReadlistOrder
 from app import db
 from flask_jwt_extended import jwt_required
-import cloudinary
-import cloudinary.uploader
 from sqlalchemy import func
 import random
+import os
+from werkzeug.utils import secure_filename
+import time
 
 blog_bp = Blueprint('blog_bp', __name__)
 
@@ -32,7 +33,6 @@ def search_posts():
     if not query:
         return jsonify([])
     
-    # Search in title and excerpt
     posts = Post.query.filter(
         Post.title.ilike(f'%{query}%') | Post.excerpt.ilike(f'%{query}%')
     ).order_by(Post.date_posted.desc()).limit(20).all()
@@ -96,12 +96,28 @@ def get_category_page(slug):
 @blog_bp.route('/upload-image', methods=['POST'])
 @jwt_required()
 def upload_blog_image():
-    if 'file' not in request.files: return jsonify({'error': 'No file part'}), 400
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
     try:
-        upload_result = cloudinary.uploader.upload(file, folder="the_b_blog")
-        return jsonify({'url': upload_result['secure_url']})
-    except Exception as e: return jsonify({'error': str(e)}), 500
+        filename = secure_filename(file.filename)
+        unique_filename = f"{int(time.time())}_{filename}"
+        
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+        if not os.path.exists(upload_folder):
+            os.makedirs(upload_folder)
+            
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+
+        file_url = f"/static/uploads/{unique_filename}"
+        
+        return jsonify({'url': file_url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @blog_bp.route('/admin/posts', methods=['GET'])
 @jwt_required()

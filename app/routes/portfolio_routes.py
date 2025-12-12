@@ -2,25 +2,8 @@ from flask import Blueprint, jsonify, request
 from app.models.project import Project
 from app import db
 from flask_jwt_extended import jwt_required
-import cloudinary
-import cloudinary.uploader
 
 portfolio_bp = Blueprint('portfolio_bp', __name__)
-
-@portfolio_bp.route('/upload', methods=['POST'])
-@jwt_required()
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    try:
-        upload_result = cloudinary.uploader.upload(file, resource_type="auto")
-        return jsonify({'secure_url': upload_result['secure_url']})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 
 @portfolio_bp.route('/projects', methods=['GET'])
 def get_projects():
@@ -32,18 +15,12 @@ def get_projects():
 def add_project():
     data = request.get_json()
     new_project = Project(
-        title=data['title'],
-        description=data['description'],
-        tech_stack=data.get('tech_stack'),
-        tools=data.get('tools'),
-        live_url=data.get('live_url'),
-        github_url=data.get('github_url'),
-        image_url=data.get('image_url'),
-        video_url=data.get('video_url'),
-        duration=data.get('duration'),
-        cost=data.get('cost'),
-        collaborators=data.get('collaborators'),
-        order=data.get('order', 0)
+        title=data['title'], description=data['description'], role=data.get('role'),
+        tech_stack=data.get('tech_stack'), tools=data.get('tools'),
+        live_url=data.get('live_url'), github_url=data.get('github_url'),
+        case_study_url=data.get('case_study_url'), image_url=data.get('image_url'),
+        duration=data.get('duration'), cost=data.get('cost'),
+        collaborators=data.get('collaborators'), order=data.get('order', 0)
     )
     db.session.add(new_project)
     db.session.commit()
@@ -56,12 +33,13 @@ def update_project(project_id):
     data = request.get_json()
     project.title = data.get('title', project.title)
     project.description = data.get('description', project.description)
+    project.role = data.get('role', project.role)
     project.tech_stack = data.get('tech_stack', project.tech_stack)
     project.tools = data.get('tools', project.tools)
     project.live_url = data.get('live_url', project.live_url)
     project.github_url = data.get('github_url', project.github_url)
+    project.case_study_url = data.get('case_study_url', project.case_study_url)
     project.image_url = data.get('image_url', project.image_url)
-    project.video_url = data.get('video_url', project.video_url)
     project.duration = data.get('duration', project.duration)
     project.cost = data.get('cost', project.cost)
     project.collaborators = data.get('collaborators', project.collaborators)
