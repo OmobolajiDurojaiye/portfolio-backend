@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_mail import Message
 from app import mail
+import os
 
 contact_bp = Blueprint('contact_bp', __name__)
 
@@ -17,7 +18,7 @@ def send_contact_email():
     try:
         msg = Message(
             subject=f"New Portfolio Inquiry from {name}",
-            recipients=[mail.default_sender],
+            recipients=[os.environ.get('MAIL_FROM')],
             body=f"Name: {name}\nEmail: {email}\n\nMessage:\n{message}"
         )
         mail.send(msg)
