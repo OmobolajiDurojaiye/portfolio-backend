@@ -17,9 +17,13 @@ def get_availability():
 @booking_bp.route('/bookings', methods=['POST'])
 def create_booking():
     data = request.get_json()
+    
+    # THE FIX: Replace 'Z' with '+00:00' to make it compatible with fromisoformat
+    iso_time_str = data['time'].replace('Z', '+00:00')
+    
     new_booking = Booking(
         client_name=data['name'], client_email=data['email'],
-        meeting_time=datetime.fromisoformat(data['time']),
+        meeting_time=datetime.fromisoformat(iso_time_str),
         meeting_duration=data['duration'], notes=data.get('notes')
     )
     db.session.add(new_booking)
@@ -30,7 +34,7 @@ def create_booking():
             subject="New Booking Request",
             recipients=[os.environ.get('MAIL_FROM')],
             body=f"New booking request from {data['name']} ({data['email']}).\n"
-                 f"Time: {new_booking.meeting_time.strftime('%A, %B %d, %Y at %I:%M %p')}\n"
+                 f"Time: {new_booking.meeting_time.strftime('%A, %B %d, %Y at %I:%M %p UTC')}\n"
                  f"Duration: {data['duration']} minutes."
         )
         mail.send(msg_admin)
@@ -39,7 +43,7 @@ def create_booking():
             recipients=[data['email']],
             body=f"Hi {data['name']},\n\nYour request for a {data['duration']}-minute session is received.\n"
                  f"I will confirm the appointment and send a meeting link shortly.\n\n"
-                 f"Requested Time: {new_booking.meeting_time.strftime('%A, %B %d, %Y at %I:%M %p')}\n\n"
+                 f"Requested Time: {new_booking.meeting_time.strftime('%A, %B %d, %Y at %I:%M %p UTC')}\n\n"
                  f"Best,\nBolaji"
         )
         mail.send(msg_client)
