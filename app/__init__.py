@@ -18,6 +18,7 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # THE FIX: Add database connection pool recycling
     app.config['SQLALCHEMY_POOL_RECYCLE'] = 280
     app.config['SQLALCHEMY_POOL_TIMEOUT'] = 20
 
