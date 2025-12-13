@@ -27,6 +27,11 @@ def get_blog_home_data():
         'pagination': { 'page': paginated_posts.page, 'totalPages': paginated_posts.pages, 'hasNext': paginated_posts.has_next, 'hasPrev': paginated_posts.has_prev }
     })
 
+@blog_bp.route('/readlists', methods=['GET'])
+def get_all_public_readlists():
+    readlists = Readlist.query.order_by(Readlist.order.asc()).all()
+    return jsonify([rl.to_dict(include_posts=True) for rl in readlists])
+
 @blog_bp.route('/search', methods=['GET'])
 def search_posts():
     query = request.args.get('q', '', type=str)
@@ -60,10 +65,8 @@ def get_related_content(slug):
         in_this_series = all_related_posts[:2]
 
     return jsonify({
-        'previousPost': prev_post.to_dict() if prev_post else None,
-        'nextPost': next_post.to_dict() if next_post else None,
-        'moreInCategory': [p.to_dict() for p in more_in_category],
-        'inThisSeries': [p.to_dict() for p in in_this_series]
+        'previousPost': prev_post.to_dict() if prev_post else None, 'nextPost': next_post.to_dict() if next_post else None,
+        'moreInCategory': [p.to_dict() for p in more_in_category], 'inThisSeries': [p.to_dict() for p in in_this_series]
     })
 
 @blog_bp.route('/posts/<string:slug>/view', methods=['POST'])
@@ -87,10 +90,8 @@ def get_all_public_categories():
 def get_category_page(slug):
     category = Category.query.filter_by(slug=slug).first_or_404()
     posts = Post.query.filter_by(category_id=category.id).order_by(Post.date_posted.desc()).all()
-    return jsonify({
-        'category': category.to_dict(),
-        'posts': [p.to_dict() for p in posts]
-    })
+    return jsonify({'category': category.to_dict(), 'posts': [p.to_dict() for p in posts]})
+
 
 # --- Admin Routes ---
 @blog_bp.route('/upload-image', methods=['POST'])
