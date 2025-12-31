@@ -10,6 +10,12 @@ def get_projects():
     projects = Project.query.order_by(Project.order.asc()).all()
     return jsonify([project.to_dict() for project in projects])
 
+@portfolio_bp.route('/projects/featured', methods=['GET'])
+def get_featured_projects():
+    # Assuming 'order' field is used for featuring (lower numbers are higher priority)
+    projects = Project.query.order_by(Project.order.asc()).limit(2).all()
+    return jsonify([project.to_dict() for project in projects])
+
 @portfolio_bp.route('/projects', methods=['POST'])
 @jwt_required()
 def add_project():
@@ -31,18 +37,12 @@ def add_project():
 def update_project(project_id):
     project = Project.query.get_or_404(project_id)
     data = request.get_json()
-    project.title = data.get('title', project.title)
-    project.description = data.get('description', project.description)
-    project.role = data.get('role', project.role)
-    project.tech_stack = data.get('tech_stack', project.tech_stack)
-    project.tools = data.get('tools', project.tools)
-    project.live_url = data.get('live_url', project.live_url)
-    project.github_url = data.get('github_url', project.github_url)
-    project.case_study_url = data.get('case_study_url', project.case_study_url)
-    project.image_url = data.get('image_url', project.image_url)
-    project.duration = data.get('duration', project.duration)
-    project.cost = data.get('cost', project.cost)
-    project.collaborators = data.get('collaborators', project.collaborators)
+    project.title = data.get('title', project.title); project.description = data.get('description', project.description)
+    project.role = data.get('role', project.role); project.tech_stack = data.get('tech_stack', project.tech_stack)
+    project.tools = data.get('tools', project.tools); project.live_url = data.get('live_url', project.live_url)
+    project.github_url = data.get('github_url', project.github_url); project.case_study_url = data.get('case_study_url', project.case_study_url)
+    project.image_url = data.get('image_url', project.image_url); project.duration = data.get('duration', project.duration)
+    project.cost = data.get('cost', project.cost); project.collaborators = data.get('collaborators', project.collaborators)
     project.order = data.get('order', project.order)
     db.session.commit()
     return jsonify(project.to_dict())
