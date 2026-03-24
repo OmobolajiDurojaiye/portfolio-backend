@@ -20,7 +20,7 @@ class Config:
     MAIL_USE_SSL = os.environ.get('MAIL_SSL_TLS') == 'True'
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_FROM')
+    MAIL_DEFAULT_SENDER = (os.environ.get('MAIL_SENDER_NAME'), os.environ.get('MAIL_FROM'))
     
     # Cloudinary Configuration
     CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
