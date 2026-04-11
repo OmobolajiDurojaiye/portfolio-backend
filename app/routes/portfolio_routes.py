@@ -13,7 +13,7 @@ def get_projects():
 @portfolio_bp.route('/projects/featured', methods=['GET'])
 def get_featured_projects():
     # Assuming 'order' field is used for featuring (lower numbers are higher priority)
-    projects = Project.query.order_by(Project.order.asc()).limit(2).all()
+    projects = Project.query.order_by(Project.order.asc()).limit(4).all()
     return jsonify([project.to_dict() for project in projects])
 
 @portfolio_bp.route('/projects', methods=['POST'])
