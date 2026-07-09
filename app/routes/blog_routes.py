@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, Response
 from app.models.blog import Post, Readlist, Category, PostReadlistOrder
 from app import db
 from flask_jwt_extended import jwt_required
@@ -255,3 +255,53 @@ def delete_category(cat_id):
     db.session.delete(category)
     db.session.commit()
     return jsonify({'message': 'Category deleted.'})
+
+
+# --- Dynamic RSS Feed ---
+@blog_bp.route('/rss.xml', methods=['GET'])
+def rss_feed():
+    """Generate a dynamic RSS feed from all published blog posts."""
+    from xml.sax.saxutils import escape
+    from datetime import timezone
+
+    posts = Post.query.order_by(Post.date_posted.desc()).all()
+
+    # Build date string for channel
+    if posts:
+        last_build = posts[0].date_posted.replace(tzinfo=timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    else:
+        from datetime import datetime
+        last_build = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+    items_xml = ""
+    for post in posts:
+        pub_date = post.date_posted.replace(tzinfo=timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+        post_url = f"https://bolaji.tech/blog/{post.slug}"
+        category_tag = ""
+        if post.category:
+            category_tag = f"\n    <category>{escape(post.category.name)}</category>"
+
+        items_xml += f"""
+  <item>
+    <title>{escape(post.title)}</title>
+    <link>{post_url}</link>
+    <description>{escape(post.excerpt or '')}</description>
+    <author>bolaji@bolaji.tech (Bolaji Durojaiye)</author>{category_tag}
+    <pubDate>{pub_date}</pubDate>
+    <guid>{post_url}</guid>
+  </item>"""
+
+    rss_xml = f"""<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Bolaji's Blog</title>
+  <link>https://bolaji.tech/blog</link>
+  <description>Thoughts, tutorials, and insights on software engineering, APIs, and building scalable systems — by Omobolaji Durojaiye.</description>
+  <language>en-us</language>
+  <lastBuildDate>{last_build}</lastBuildDate>
+  <atom:link href="https://bolaji.tech/api/blog/rss.xml" rel="self" type="application/rss+xml" />{items_xml}
+</channel>
+</rss>
+"""
+
+    return Response(rss_xml.strip(), mimetype='application/rss+xml')
