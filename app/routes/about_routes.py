@@ -2,6 +2,9 @@ from flask import Blueprint, jsonify, request
 from app.models.about import About, Skill, Tool, WorkExperience
 from app import db
 from flask_jwt_extended import jwt_required
+import requests
+import base64
+import os
 
 about_bp = Blueprint('about_bp', __name__)
 
@@ -114,3 +117,94 @@ def delete_work_experience(exp_id):
     db.session.delete(exp)
     db.session.commit()
     return jsonify({'message': 'Work experience deleted.'})
+
+# --- Spotify Integration Route ---
+SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REFRESH_TOKEN = os.environ.get("SPOTIFY_REFRESH_TOKEN")
+
+def get_spotify_access_token():
+    if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET or not SPOTIFY_REFRESH_TOKEN:
+        return None
+    auth_header = base64.b64encode(f"{SPOTIFY_CLIENT_ID}:{SPOTIFY_CLIENT_SECRET}".encode("utf-8")).decode("utf-8")
+    headers = {
+        "Authorization": f"Basic {auth_header}",
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": SPOTIFY_REFRESH_TOKEN
+    }
+    try:
+        res = requests.post("https://accounts.spotify.com/api/token", headers=headers, data=data, timeout=5)
+        if res.status_code == 200:
+            return res.json().get("access_token")
+    except Exception as e:
+        print("Spotify token error:", e)
+    return None
+
+@about_bp.route('/spotify', methods=['GET'])
+def get_spotify_now_playing():
+    access_token = get_spotify_access_token()
+    
+    # Default/Offline Fallback Response (using user's actual profile URL)
+    default_track = {
+        "is_playing": False,
+        "title": "Last Last",
+        "artist": "Burna Boy",
+        "album_art": "https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=300&auto=format&fit=crop",
+        "progress_ms": 180000,
+        "duration_ms": 230000,
+        "track_url": "https://open.spotify.com/user/31uyiyix7zv5vnia63hcvdt4xzry?si=67e9059882504770"
+    }
+
+    if not access_token:
+        return jsonify(default_track)
+
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    try:
+        # 1. Query currently playing
+        res = requests.get("https://api.spotify.com/v1/me/player/currently-playing", headers=headers, timeout=5)
+        if res.status_code == 200 and res.content:
+            data = res.json()
+            item = data.get("item")
+            if item:
+                album = item.get("album", {})
+                images = album.get("images", [])
+                album_art = images[0].get("url") if images else default_track["album_art"]
+                return jsonify({
+                    "is_playing": data.get("is_playing", False),
+                    "title": item.get("name"),
+                    "artist": ", ".join([artist.get("name") for artist in item.get("artists", [])]),
+                    "album_art": album_art,
+                    "progress_ms": data.get("progress_ms", 0),
+                    "duration_ms": item.get("duration_ms", 0),
+                    "track_url": item.get("external_urls", {}).get("spotify", default_track["track_url"])
+                })
+        
+        # 2. If nothing playing, query recently played
+        res = requests.get("https://api.spotify.com/v1/me/player/recently-played?limit=1", headers=headers, timeout=5)
+        if res.status_code == 200 and res.content:
+            data = res.json()
+            items = data.get("items", [])
+            if items:
+                track = items[0].get("track")
+                if track:
+                    album = track.get("album", {})
+                    images = album.get("images", [])
+                    album_art = images[0].get("url") if images else default_track["album_art"]
+                    return jsonify({
+                        "is_playing": False,
+                        "title": track.get("name"),
+                        "artist": ", ".join([artist.get("name") for artist in track.get("artists", [])]),
+                        "album_art": album_art,
+                        "progress_ms": 0,
+                        "duration_ms": track.get("duration_ms", 0),
+                        "track_url": track.get("external_urls", {}).get("spotify", default_track["track_url"])
+                    })
+    except Exception as e:
+        print("Spotify now playing error:", e)
+
+    return jsonify(default_track)
